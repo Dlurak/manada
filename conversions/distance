@@ -1,5 +1,20 @@
+# Metric conversions
 km -> m: x * 1000
 m -> dm: x * 10
 dm -> cm: x * 10
 cm -> mm: x * 10
 mm -> km: x / 1000000
+
+# Imperial conversions
+in -> ft: x / 12
+ft -> in: x * 12
+ft -> yard: x / 3
+yard -> ft: x * 3
+yard -> mi: x / 1760
+mi -> yard: x * 1760
+mi -> nm: x * 0.868976
+nm -> mi: x / 0.868976
+
+# Mixed conversions
+ft -> m: x * 0.3048
+m -> ft: x / 0.3048

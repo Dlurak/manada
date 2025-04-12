@@ -18,6 +18,13 @@ pub fn parse(unparsed: &str) -> Option<Parsed> {
     let mut nodes = HashMap::new();
 
     for line in unparsed.lines() {
+        if line.is_empty() {
+            continue;
+        }
+        if line.starts_with('#') {
+            continue;
+        }
+
         let (origin, rest) = line.split_once(" -> ")?;
         let (dest, conv) = rest.split_once(": ")?;
 
