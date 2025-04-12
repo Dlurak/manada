@@ -1,4 +1,4 @@
-use super::{token::Token, Expression, Operator, Value};
+use super::{token::Token, Operator, Value};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
@@ -15,9 +15,9 @@ impl Iterator for Parser {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let tok = self.tokens.get(self.pos)?.clone();
+        let tok = self.tokens.get(self.pos)?;
         self.pos += 1;
-        Some(tok)
+        Some(*tok)
     }
 }
 
@@ -40,7 +40,11 @@ impl Parser {
                 unreachable!()
             };
             let right = self.parse_term()?;
-            left = Value::Expr(Box::new(Expression { left, op, right }));
+            left = Value::Expr {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
         }
 
         Ok(left)
@@ -56,7 +60,11 @@ impl Parser {
                 unreachable!()
             };
             let right = self.parse_factor()?;
-            left = Value::Expr(Box::new(Expression { left, op, right }));
+            left = Value::Expr {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
         }
 
         Ok(left)
@@ -69,14 +77,7 @@ impl Parser {
             Some(Token::LeftParenthese) => {
                 let expr = self.parse_expression()?;
                 match self.next() {
-                    Some(Token::RightParenthese) => Ok(Value::Expr(Box::new(match expr {
-                        Value::Expr(e) => *e,
-                        v => Expression {
-                            left: v,
-                            op: Operator::Add,
-                            right: Value::Num(0.0),
-                        },
-                    }))),
+                    Some(Token::RightParenthese) => Ok(expr),
                     Some(tok) => Err(ParseError::UnexpectedToken(tok)),
                     None => Err(ParseError::UnexpectedEOL),
                 }

@@ -8,7 +8,12 @@ use crate::calculation::parser::Parser;
 use crate::calculation::token::token_list;
 use crate::calculation::Value;
 
-pub fn parse(unparsed: &str) -> Option<(Graph<&str, Value>, HashMap<&str, NodeIndex>)> {
+pub struct Parsed<'a> {
+    pub graph: Graph<&'a str, Value>,
+    pub nodes: HashMap<&'a str, NodeIndex>,
+}
+
+pub fn parse(unparsed: &str) -> Option<Parsed> {
     let mut graph: Graph<&str, Value, Directed> = Graph::new();
     let mut nodes = HashMap::new();
 
@@ -29,5 +34,5 @@ pub fn parse(unparsed: &str) -> Option<(Graph<&str, Value>, HashMap<&str, NodeIn
         graph.add_edge(origin, *dest, value);
     }
 
-    Some((graph, nodes))
+    Some(Parsed { graph, nodes })
 }

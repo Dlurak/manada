@@ -3,7 +3,7 @@ pub mod token;
 
 use std::fmt::Display;
 
-use derive_more::Display;
+use derive_more::{Display, From};
 
 #[derive(PartialEq, Eq, Debug, Display, Clone, Copy)]
 pub enum Operator {
@@ -17,19 +17,39 @@ pub enum Operator {
     Div,
 }
 
-#[derive(Display, PartialEq, Debug)]
+#[derive(PartialEq, Debug, From)]
 pub enum Value {
-    #[display("x")]
     Var,
-    #[display("{_0}")]
+    #[from]
     Num(f64),
-    #[display("{_0}")]
-    Expr(Box<Expression>),
+    Expr {
+        left: Box<Value>,
+        op: Operator,
+        right: Box<Value>,
+    },
 }
 
-impl<'a> From<f64> for Value {
-    fn from(value: f64) -> Self {
-        Self::Num(value)
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Var => write!(f, "x"),
+            Self::Num(n) => write!(f, "{n}"),
+            Self::Expr { left, op, right } => {
+                if let Self::Expr { .. } = **left {
+                    write!(f, "({})", left)?;
+                } else {
+                    write!(f, "{}", left)?;
+                }
+
+                write!(f, " {} ", op)?;
+
+                if let Self::Expr { .. } = **right {
+                    write!(f, "({})", right)
+                } else {
+                    write!(f, "{}", right)
+                }
+            }
+        }
     }
 }
 
@@ -38,50 +58,57 @@ impl Value {
         match self {
             Self::Var => Some(x),
             Self::Num(n) => Some(*n),
-            Self::Expr(e) => e.evaluate(x),
+            Self::Expr { left, right, op } => {
+                let left = left.evaluate(x)?;
+                let right = right.evaluate(x)?;
+                match op {
+                    Operator::Add => Some(left + right),
+                    Operator::Sub => Some(left - right),
+                    Operator::Mul => Some(left * right),
+                    Operator::Div => (right != 0.0).then_some(left / right),
+                }
+            }
         }
     }
 }
 
-// #[derive(Display, PartialEq, Debug)]
-#[derive(PartialEq, Debug)]
-// #[display("{left} {op} {right}")]
-pub struct Expression {
-    left: Value,
-    op: Operator,
-    right: Value,
-}
-
-impl Display for Expression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Value::Expr(e) = &self.left {
-            write!(f, "({})", e)?;
-        } else {
-            write!(f, "{}", self.left)?;
-        }
-
-        write!(f, " {} ", self.op)?;
-
-        if let Value::Expr(e) = &self.right {
-            write!(f, "({})", e)
-        } else {
-            write!(f, "{}", self.right)
-        }
-    }
-}
-
-impl Expression {
-    pub fn evaluate(&self, x: f64) -> Option<f64> {
-        let left = self.left.evaluate(x)?;
-        let right = self.right.evaluate(x)?;
-        match self.op {
-            Operator::Add => Some(left + right),
-            Operator::Sub => Some(left - right),
-            Operator::Mul => Some(left * right),
-            Operator::Div => (right != 0.0).then_some(left / right),
-        }
-    }
-}
+// #[derive(PartialEq, Debug)]
+// pub struct Expression {
+//     left: Value,
+//     op: Operator,
+//     right: Value,
+// }
+//
+// impl Display for Expression {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         if let Value::Expr(e) = &self.left {
+//             write!(f, "({})", e)?;
+//         } else {
+//             write!(f, "{}", self.left)?;
+//         }
+//
+//         write!(f, " {} ", self.op)?;
+//
+//         if let Value::Expr(e) = &self.right {
+//             write!(f, "({})", e)
+//         } else {
+//             write!(f, "{}", self.right)
+//         }
+//     }
+// }
+//
+// impl Expression {
+//     pub fn evaluate(&self, x: f64) -> Option<f64> {
+//         let left = self.left.evaluate(x)?;
+//         let right = self.right.evaluate(x)?;
+//         match self.op {
+//             Operator::Add => Some(left + right),
+//             Operator::Sub => Some(left - right),
+//             Operator::Mul => Some(left * right),
+//             Operator::Div => (right != 0.0).then_some(left / right),
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -89,41 +116,41 @@ mod tests {
 
     #[test]
     fn test_expression_evaluation() {
-        let my_expr = Expression {
-            left: 1.0.into(),
+        let my_expr = Value::Expr {
+            left: Box::new(1.0.into()),
             op: Operator::Add,
-            right: Value::Var,
+            right: Box::new(Value::Var),
         };
         assert_eq!(my_expr.evaluate(5.0), Some(6.0));
 
-        let my_expr = Expression {
-            left: Value::Expr(Box::new(my_expr)),
+        let my_expr = Value::Expr {
+            left: Box::new(my_expr),
             op: Operator::Add,
-            right: Value::Var,
+            right: Box::new(Value::Var),
         };
         assert_eq!(my_expr.evaluate(3.0), Some(7.0));
 
-        let my_expr = Expression {
-            left: Value::Var,
+        let my_expr = Value::Expr {
+            left: Box::new(Value::Var),
             op: Operator::Div,
-            right: 0.0.into(),
+            right: Box::new(0.0.into()),
         };
         assert!(my_expr.evaluate(3.0).is_none());
     }
 
     #[test]
     fn test_format() {
-        let my_expr = Expression {
-            left: 1.0.into(),
+        let my_expr = Value::Expr {
+            left: Box::new(1.0.into()),
             op: Operator::Add,
-            right: Value::Var,
+            right: Box::new(Value::Var),
         };
         assert_eq!(format!("{}", my_expr), String::from("1 + x"));
 
-        let my_expr = Expression {
-            left: Value::Expr(Box::new(my_expr)),
+        let my_expr = Value::Expr {
+            left: Box::new(my_expr),
             op: Operator::Add,
-            right: Value::Var,
+            right: Box::new(Value::Var),
         };
         assert_eq!(format!("{}", my_expr), String::from("(1 + x) + x"));
     }

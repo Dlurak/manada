@@ -29,20 +29,20 @@ pub fn token_list(unparsed: &str) -> Result<Vec<Token>, TokenizeError> {
         let c = chars[i];
 
         let is_negative_number = c == '-' && {
-            chars.get(i + 1).is_some_and(|&nc| nc.is_digit(10))
+            chars.get(i + 1).is_some_and(|&nc| nc.is_ascii_digit())
                 && (matches!(
                     tokens.last(),
                     None | Some(Token::Operator(_)) | Some(Token::LeftParenthese)
                 ))
         };
-        let is_number = c.is_digit(10) || is_negative_number;
+        let is_number = c.is_ascii_digit() || is_negative_number;
 
         if is_number {
             let start = i;
             if c == '-' {
                 i += 1;
             }
-            while i < chars.len() && (chars[i].is_digit(10) || chars[i] == '.') {
+            while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
                 i += 1;
             }
             let num_str: String = chars[start..i].iter().collect();
