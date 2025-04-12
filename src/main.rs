@@ -1,21 +1,26 @@
 mod calculation;
+mod cli;
 mod macros;
 mod parse;
 
+use clap::Parser;
 use itertools::Itertools;
 use parse::{parse, Parsed};
 use std::{env, fs::read_to_string, path::PathBuf};
 
-const UNIT_SET: &str = "distance";
-const START_UNIT: &str = "m";
-const END_UNIT: &str = "km";
-const VALUE: f64 = 1500.0;
-
 fn main() {
-    let config_dir_file = dirs::config_dir().map(|dir| dir.join("manada").join(UNIT_SET));
+    let cli::Cli {
+        unit_set,
+        value,
+        destination: end_unit,
+    } = cli::Cli::parse();
+    let start_unit = value.unit;
+    let value = value.value;
+
+    let config_dir_file = dirs::config_dir().map(|dir| dir.join("manada").join(&unit_set));
     let etc_file = env::var("MANADA_CONFIG")
         .map_or(PathBuf::from("/etc/manada"), PathBuf::from)
-        .join(UNIT_SET);
+        .join(&unit_set);
 
     let file_path = match (config_dir_file, etc_file) {
         (Some(file), _) if file.exists() => file,
@@ -34,13 +39,13 @@ fn main() {
         exit!(1, "Can't parse the conversion file {}", file_path.display());
     };
 
-    let Some(&start) = nodes.get(START_UNIT) else {
-        exit!(1, "There is no {START_UNIT} in {UNIT_SET}");
+    let Some(&start) = nodes.get(start_unit.as_str()) else {
+        exit!(1, "There is no {start_unit} in {unit_set}");
     };
 
     // TODO: a* is a bit too much, it works but is way more intensive then needed
     let shortest_path =
-        petgraph::algo::astar(&graph, start, |n| graph[n] == END_UNIT, |_| 1, |_| 1);
+        petgraph::algo::astar(&graph, start, |n| graph[n] == end_unit, |_| 1, |_| 1);
     let converted = match shortest_path {
         Some((_, nodes)) => nodes
             .into_iter()
@@ -49,12 +54,12 @@ fn main() {
                 let edge = graph.find_edge(n1, n2)?;
                 graph.edge_weight(edge)
             })
-            .try_fold(VALUE, |converted, calc| calc.evaluate(converted)),
-        None => exit!(1, "There is no {END_UNIT} in {UNIT_SET}"),
+            .try_fold(value, |converted, calc| calc.evaluate(converted)),
+        None => exit!(1, "There is no {end_unit} in {unit_set}"),
     };
     match converted {
         Some(conv) => {
-            println!("{conv}{END_UNIT}");
+            println!("{conv}{end_unit}");
         }
         // TODO: Show the entire calculation => add a substitute method for the calculations
         None => {
