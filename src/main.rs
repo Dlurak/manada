@@ -5,7 +5,7 @@ mod parse;
 
 use clap::Parser;
 use itertools::Itertools;
-use parse::{parse, Parsed};
+use parse::{Parsed, parse};
 use std::{env, fs::read_to_string, path::PathBuf};
 
 fn main() {
@@ -34,9 +34,12 @@ fn main() {
         Err(e) => exit!(1, "Can't read file {} ({})", file_path.display(), e.kind()),
     };
 
-    // TODO: Show an real error message with an explaination (maybe even location?)
-    let Some(Parsed { graph, nodes }) = parse(&content) else {
-        exit!(1, "Can't parse the conversion file {}", file_path.display());
+    let Parsed { graph, nodes } = match parse(&content) {
+        Ok(x) => x,
+        Err(err) => {
+            err.print(file_path, &content);
+            std::process::exit(1);
+        }
     };
 
     let Some(&start) = nodes.get(start_unit.as_str()) else {

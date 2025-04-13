@@ -1,8 +1,11 @@
-use super::{token::Token, Operator, Value};
+use super::{Operator, Value, token::Token};
+use derive_more::Display;
 
-#[derive(Debug, PartialEq)]
-pub enum ParseError {
+#[derive(Debug, PartialEq, Display)]
+pub enum CalculationParseError {
+    #[display("Unexpected end of line in the calculation")]
     UnexpectedEOL,
+    #[display("Unexpected token {_0} in the calculation")]
     UnexpectedToken(Token),
 }
 
@@ -30,7 +33,7 @@ impl Parser {
         self.tokens.get(self.pos)
     }
 
-    pub fn parse_expression(&mut self) -> Result<Value, ParseError> {
+    pub fn parse_expression(&mut self) -> Result<Value, CalculationParseError> {
         let mut left = self.parse_term()?;
 
         while let Some(Token::Operator(Operator::Add | Operator::Sub)) = self.peek() {
@@ -50,7 +53,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_term(&mut self) -> Result<Value, ParseError> {
+    fn parse_term(&mut self) -> Result<Value, CalculationParseError> {
         let mut left = self.parse_factor()?;
 
         while let Some(Token::Operator(Operator::Mul | Operator::Div)) = self.peek() {
@@ -70,7 +73,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_factor(&mut self) -> Result<Value, ParseError> {
+    fn parse_factor(&mut self) -> Result<Value, CalculationParseError> {
         match self.next() {
             Some(Token::Number(n)) => Ok(Value::Num(n)),
             Some(Token::Variable) => Ok(Value::Var),
@@ -78,12 +81,12 @@ impl Parser {
                 let expr = self.parse_expression()?;
                 match self.next() {
                     Some(Token::RightParenthese) => Ok(expr),
-                    Some(tok) => Err(ParseError::UnexpectedToken(tok)),
-                    None => Err(ParseError::UnexpectedEOL),
+                    Some(tok) => Err(CalculationParseError::UnexpectedToken(tok)),
+                    None => Err(CalculationParseError::UnexpectedEOL),
                 }
             }
-            Some(tok) => Err(ParseError::UnexpectedToken(tok)),
-            None => Err(ParseError::UnexpectedEOL),
+            Some(tok) => Err(CalculationParseError::UnexpectedToken(tok)),
+            None => Err(CalculationParseError::UnexpectedEOL),
         }
     }
 }
@@ -142,12 +145,14 @@ mod tests {
     fn test_error() {
         let mut parser = Parser::new(token_list("(x + 2").unwrap());
         let result = parser.parse_expression();
-        assert_eq!(result, Err(ParseError::UnexpectedEOL));
+        assert_eq!(result, Err(CalculationParseError::UnexpectedEOL));
 
         let mut parser = Parser::new(token_list("x +* 2").unwrap());
         assert_eq!(
             parser.parse_expression(),
-            Err(ParseError::UnexpectedToken(Token::Operator(Operator::Mul)))
+            Err(CalculationParseError::UnexpectedToken(Token::Operator(
+                Operator::Mul
+            )))
         );
     }
 

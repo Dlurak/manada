@@ -1,16 +1,24 @@
+use derive_more::Display;
+
 use super::Operator;
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Display)]
 pub enum Token {
+    #[display("NUMBER({_0})")]
     Number(f64),
+    #[display("OPERATOR({_0})")]
     Operator(Operator),
+    #[display("VARIABLE")]
     Variable,
+    #[display("LEFT-PARENTHESE")]
     LeftParenthese,
+    #[display("RIGHT-PARENTHESE")]
     RightParenthese,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Display)]
 pub enum TokenizeError {
+    #[display("Invalid charachter {char} in calculation")]
     InvalidChar {
         serialized_string: String,
         char: char,
@@ -62,7 +70,7 @@ pub fn token_list(unparsed: &str) -> Result<Vec<Token>, TokenizeError> {
                         serialized_string: serialized,
                         char,
                         position: i,
-                    })
+                    });
                 }
             };
             tokens.push(next);
