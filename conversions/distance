@@ -7,14 +7,16 @@ mm -> km: x / 1000000
 
 # Imperial conversions
 in -> ft: x / 12
-ft -> in: x * 12
+ft -> in: x * 12 # TODO: Remove once calculations are precice
 ft -> yard: x / 3
-yard -> ft: x * 3
+yard -> ft: x * 3 # TODO: Remove once calculations are precice
 yard -> mi: x / 1760
-mi -> yard: x * 1760
+mi -> yard: x * 1760 # TODO: Remove once calculations are precice
 mi -> nm: x * 0.868976
-nm -> mi: x / 0.868976
+nm -> mi: x / 0.868976 # TODO: Remove once calculations are precice
+# TODO: add nm -> in once calculations are precice
 
 # Mixed conversions
 ft -> m: x * 0.3048
 m -> ft: x / 0.3048
+nm -> km: x * 1.852 # TODO: Remove once calculations are precice

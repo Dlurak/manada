@@ -1,12 +1,12 @@
 use crate::calculation::{
-    Value,
     parser::{CalculationParseError, Parser},
-    token::{TokenizeError, token_list},
+    token::{token_list, TokenizeError},
+    Value,
 };
 use ansi_term::{Colour, Style};
 use derive_more::{Display, From};
 use itertools::Itertools;
-use petgraph::{Directed, Graph, algo::astar, stable_graph::NodeIndex};
+use petgraph::{algo::astar, stable_graph::NodeIndex, Directed, Graph};
 use std::{collections::HashMap, path::PathBuf};
 
 pub struct Parsed<'a> {
@@ -19,14 +19,15 @@ impl Parsed<'_> {
         let mut graph: Graph<&str, Value, Directed> = Graph::new();
         let mut nodes = HashMap::new();
 
-        for (i, line) in unparsed.lines().enumerate() {
-            if line.is_empty() {
-                continue;
-            }
-            if line.starts_with('#') {
-                continue;
-            }
+        let lines = unparsed.lines().enumerate().filter_map(|(i, line)| {
+            let line = line.trim();
+            let line = line
+                .find('#')
+                .map_or(line, |comment_start| &line[0..comment_start]);
 
+            (!line.is_empty()).then_some((i, line))
+        });
+        for (i, line) in lines {
             let (origin, rest) = line.split_once(" -> ").ok_or(ParseError {
                 line: i,
                 error_kind: ParseErrorKind::MissingArrow,

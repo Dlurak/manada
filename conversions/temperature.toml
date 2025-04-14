@@ -1,0 +1,4 @@
+[aliases]
+k = ["kelvin", "°k", "°kelvin"]
+c = ["celsius", "°c", "°celsius"]
+f = ["fahrenheit", "°f", "°fahrenheit"]

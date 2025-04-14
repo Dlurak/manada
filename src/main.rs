@@ -1,39 +1,14 @@
 mod calculation;
 mod cli;
+mod config;
 mod macros;
 mod parse;
 
 use clap::Parser;
-use derive_more::Display;
+use config::NewConfigError;
+use manada::file_path;
 use parse::{ConversionError, Parsed};
-use std::{
-    env,
-    fs::read_to_string,
-    path::{Path, PathBuf},
-};
-
-fn file_path<P: AsRef<Path>>(file_name: P) -> Result<PathBuf, NoFilePathError> {
-    let config_dir_file = dirs::config_dir().map(|dir| dir.join("manada").join(&file_name));
-    let etc_file = env::var("MANADA_CONFIG")
-        .map_or(PathBuf::from("/etc/manada"), PathBuf::from)
-        .join(&file_name);
-
-    match (config_dir_file, etc_file) {
-        (Some(file), _) if file.exists() => Ok(file),
-        (_, file) if file.exists() => Ok(file),
-        (Some(home_file), etc_file) => Err(NoFilePathError::NeitherHomeNorEtc(home_file, etc_file)),
-        // Very unlikly but it can happen, if there is no home config dir
-        (None, etc_file) => Err(NoFilePathError::NoEtc(etc_file)),
-    }
-}
-
-#[derive(Display)]
-enum NoFilePathError {
-    #[display("Neither {} nor {} exist", _0.display(), _1.display())]
-    NeitherHomeNorEtc(PathBuf, PathBuf),
-    #[display("{} doesn't exist", _0.display())]
-    NoEtc(PathBuf),
-}
+use std::fs::read_to_string;
 
 fn main() {
     let cli::Cli {
@@ -45,20 +20,43 @@ fn main() {
         destination: end_unit,
     } = cli::Cli::parse();
 
-    let file_path = file_path(&unit_set).unwrap_or_else(|e| exit!(1, "{e}"));
-    let file_content = read_to_string(&file_path).unwrap_or_else(|err| {
+    let conversions_file_path = file_path(&unit_set).unwrap_or_else(|e| exit!(1, "{e}"));
+    let file_content = read_to_string(&conversions_file_path).unwrap_or_else(|err| {
         exit!(
             1,
             "Can't read file {} ({})",
-            file_path.display(),
+            conversions_file_path.display(),
             err.kind()
         );
     });
 
     let parsed = Parsed::try_new(&file_content).unwrap_or_else(|err| {
-        err.print(file_path, &file_content);
+        err.print(conversions_file_path, &file_content);
         std::process::exit(1);
     });
+
+    let config = config::Config::try_new(&unit_set).map_or_else(
+        |err| match err {
+            NewConfigError::NoConfig => None,
+            NewConfigError::FileRead { path, error } => {
+                exit!(1, "Can't read file {} ({})", path.display(), error.kind())
+            }
+            NewConfigError::ParseError { path, error } => {
+                exit!(1, "Can't parse {}: {}", path.display(), error)
+            }
+        },
+        Some,
+    );
+
+    let (start_unit, end_unit) = match config {
+        Some(config) => {
+            let config2 = config.clone();
+            let start = config2.get_full_unit(&start_unit).unwrap_or(start_unit);
+            let end = config.get_full_unit(&end_unit).unwrap_or(end_unit);
+            (start, end)
+        }
+        None => (start_unit, end_unit),
+    };
 
     let Some(&start) = parsed.get_node_by_name(&start_unit) else {
         exit!(1, "There is no {start_unit} in {unit_set}");
