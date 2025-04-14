@@ -5,18 +5,102 @@ use crate::calculation::{
 };
 use ansi_term::{Colour, Style};
 use derive_more::{Display, From};
-use petgraph::{Directed, Graph, stable_graph::NodeIndex};
+use itertools::Itertools;
+use petgraph::{Directed, Graph, algo::astar, stable_graph::NodeIndex};
 use std::{collections::HashMap, path::PathBuf};
 
 pub struct Parsed<'a> {
-    pub graph: Graph<&'a str, Value>,
-    pub nodes: HashMap<&'a str, NodeIndex>,
+    graph: Graph<&'a str, Value>,
+    nodes: HashMap<&'a str, NodeIndex>,
+}
+
+impl Parsed<'_> {
+    pub fn try_new(unparsed: &str) -> Result<Parsed<'_>, ParseError> {
+        let mut graph: Graph<&str, Value, Directed> = Graph::new();
+        let mut nodes = HashMap::new();
+
+        for (i, line) in unparsed.lines().enumerate() {
+            if line.is_empty() {
+                continue;
+            }
+            if line.starts_with('#') {
+                continue;
+            }
+
+            let (origin, rest) = line.split_once(" -> ").ok_or(ParseError {
+                line: i,
+                error_kind: ParseErrorKind::MissingArrow,
+            })?;
+            let (dest, conv) = rest.split_once(": ").ok_or(ParseError {
+                line: i,
+                error_kind: ParseErrorKind::MissingColon,
+            })?;
+            let origin = origin.trim();
+            let dest = dest.trim();
+            let conv = conv.trim();
+
+            let origin = *nodes
+                .entry(origin)
+                .or_insert_with(|| graph.add_node(origin));
+            let dest = nodes.entry(dest).or_insert_with(|| graph.add_node(dest));
+
+            let tokens = token_list(conv).map_err(|e| ParseError {
+                line: i,
+                error_kind: e.into(),
+            })?;
+            let mut parser = Parser::new(tokens);
+            let value = parser.parse_expression().map_err(|e| ParseError {
+                line: i,
+                error_kind: e.into(),
+            })?;
+
+            graph.add_edge(origin, *dest, value);
+        }
+
+        Ok(Parsed { graph, nodes })
+    }
+
+    pub fn get_node_by_name(&self, name: &str) -> Option<&NodeIndex> {
+        self.nodes.get(name)
+    }
+
+    pub fn convert<'a>(
+        &self,
+        start: NodeIndex,
+        end: &'a str,
+        x: f64,
+    ) -> Result<f64, ConversionError<'a>> {
+        // TODO: a* is a bit too much, it works but is way more intensive then needed
+        let (_, nodes) = astar(&self.graph, start, |n| self.graph[n] == end, |_| 1, |_| 1)
+            .ok_or_else(|| {
+                if self.nodes.contains_key(end) {
+                    ConversionError::NoPathFound
+                } else {
+                    ConversionError::EndDoesntExist { end }
+                }
+            })?;
+        nodes
+            .into_iter()
+            .tuple_windows()
+            .filter_map(|(n1, n2)| {
+                let edge = self.graph.find_edge(n1, n2)?;
+                self.graph.edge_weight(edge)
+            })
+            .try_fold(x, |converted, calc| calc.evaluate(converted))
+            .ok_or(ConversionError::CalculationFailed)
+    }
+}
+
+pub enum ConversionError<'a> {
+    NoPathFound,
+    CalculationFailed,
+    EndDoesntExist { end: &'a str },
 }
 
 #[derive(Debug)]
 pub struct ParseError {
-    pub line: usize,
-    pub error_kind: ParseErrorKind,
+    line: usize,
+    error_kind: ParseErrorKind,
 }
 
 #[derive(Debug, From, Display)]
@@ -86,46 +170,4 @@ impl ParseError {
             None
         }
     }
-}
-
-pub fn parse(unparsed: &str) -> Result<Parsed, ParseError> {
-    let mut graph: Graph<&str, Value, Directed> = Graph::new();
-    let mut nodes = HashMap::new();
-
-    for (i, line) in unparsed.lines().enumerate() {
-        if line.is_empty() {
-            continue;
-        }
-        if line.starts_with('#') {
-            continue;
-        }
-
-        let (origin, rest) = line.split_once(" -> ").ok_or(ParseError {
-            line: i,
-            error_kind: ParseErrorKind::MissingArrow,
-        })?;
-        let (dest, conv) = rest.split_once(": ").ok_or(ParseError {
-            line: i,
-            error_kind: ParseErrorKind::MissingColon,
-        })?;
-
-        let origin = *nodes
-            .entry(origin)
-            .or_insert_with(|| graph.add_node(origin));
-        let dest = nodes.entry(dest).or_insert_with(|| graph.add_node(dest));
-
-        let tokens = token_list(conv).map_err(|e| ParseError {
-            line: i,
-            error_kind: e.into(),
-        })?;
-        let mut parser = Parser::new(tokens);
-        let value = parser.parse_expression().map_err(|e| ParseError {
-            line: i,
-            error_kind: e.into(),
-        })?;
-
-        graph.add_edge(origin, *dest, value);
-    }
-
-    Ok(Parsed { graph, nodes })
 }
