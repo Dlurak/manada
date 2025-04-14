@@ -17,7 +17,7 @@
 in {
   toml =
     if tomlFile == null
-    then tomlFormat.generate "${unitSet}.toml" aliases
+    then tomlFormat.generate "${unitSet}.toml" {inherit aliases;}
     else tomlFile;
   conversions =
     builtins.concatStringsSep "\n\n" (
