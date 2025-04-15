@@ -1,6 +1,6 @@
 [aliases]
 km = ["kilometer", "Kilometer"]
-m = ["meter", "Meter"]
+m = ["meters", "meter", "Meter"]
 dm = ["decimeter", "Decimeter", "dezimeter", "Dezimeter"]
 cm = ["centimeter", "Centimeter"]
 mm = ["millimeter", "Millimeter"]
@@ -8,4 +8,4 @@ in = ["inch", "inches", "zoll", "Zoll"]
 ft = ["foot", "feet", "fuß", "Fuß", "füße", "Füße"]
 mi = ["mile", "miles", "meile", "Meile", "Meilen", "Meilen"]
 nm = ["nautical", "nauticalmile", "nauticalmiles", "nautical-miles", "nautische-meile", "nautische-meilen", "nautische"]
-
+ly = ["lightyear", "lichtjahr"]

@@ -21,6 +21,7 @@ in {
       in {
         distance = mkDefault "distance";
         temperature = mkDefault "temperature";
+        data = mkDefault "data";
       };
       description = "Manada config to be applied for all users";
     };
