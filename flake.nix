@@ -12,12 +12,11 @@
     utils.lib.eachDefaultSystem (
       system: let
         pkgs = import nixpkgs {inherit system;};
-        utils = import ./nix/utils.nix;
       in {
         defaultPackage = import ./nix/package.nix {inherit pkgs;};
         devShell = import ./nix/devshell.nix {inherit pkgs;};
-		# TODO: Write a home manager module
         nixosModules.default = import ./nix/module.nix;
+        homemanagerModules.default = import ./nix/home.nix;
         overlays.default = import ./nix/overlay.nix {inherit pkgs;};
       }
     );
