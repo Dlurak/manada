@@ -1,4 +1,5 @@
 use clap::Parser;
+use rust_decimal::Decimal;
 
 #[derive(Parser)]
 pub struct Cli {
@@ -10,7 +11,7 @@ pub struct Cli {
 
 #[derive(Clone)]
 pub struct Value {
-    pub value: f64,
+    pub value: Decimal,
     pub unit: String,
 }
 

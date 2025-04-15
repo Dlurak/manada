@@ -7,6 +7,7 @@ use ansi_term::{Colour, Style};
 use derive_more::{Display, From};
 use itertools::Itertools;
 use petgraph::{algo::astar, stable_graph::NodeIndex, Directed, Graph};
+use rust_decimal::Decimal;
 use std::{collections::HashMap, path::PathBuf};
 
 pub struct Parsed<'a> {
@@ -69,8 +70,8 @@ impl Parsed<'_> {
         &self,
         start: NodeIndex,
         end: &'a str,
-        x: f64,
-    ) -> Result<f64, ConversionError<'a>> {
+        x: Decimal,
+    ) -> Result<Decimal, ConversionError<'a>> {
         // TODO: a* is a bit too much, it works but is way more intensive then needed
         let (_, nodes) = astar(&self.graph, start, |n| self.graph[n] == end, |_| 1, |_| 1)
             .ok_or_else(|| {
@@ -80,13 +81,13 @@ impl Parsed<'_> {
                     ConversionError::EndDoesntExist { end }
                 }
             })?;
-        nodes
-            .into_iter()
-            .tuple_windows()
-            .filter_map(|(n1, n2)| {
-                let edge = self.graph.find_edge(n1, n2)?;
-                self.graph.edge_weight(edge)
-            })
+
+        let mut calculations = nodes.into_iter().tuple_windows().filter_map(|(n1, n2)| {
+            let edge = self.graph.find_edge(n1, n2)?;
+            self.graph.edge_weight(edge)
+        });
+
+        calculations
             .try_fold(x, |converted, calc| calc.evaluate(converted))
             .ok_or(ConversionError::CalculationFailed)
     }

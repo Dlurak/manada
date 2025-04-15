@@ -1,11 +1,13 @@
-use derive_more::Display;
+use std::str::FromStr;
 
 use super::Operator;
+use derive_more::Display;
+use rust_decimal::Decimal;
 
 #[derive(PartialEq, Debug, Clone, Copy, Display)]
 pub enum Token {
     #[display("NUMBER({_0})")]
-    Number(f64),
+    Number(Decimal),
     #[display("OPERATOR({_0})")]
     Operator(Operator),
     #[display("VARIABLE")]
@@ -54,7 +56,7 @@ pub fn token_list(unparsed: &str) -> Result<Vec<Token>, TokenizeError> {
                 i += 1;
             }
             let num_str: String = chars[start..i].iter().collect();
-            let num: f64 = num_str.parse().unwrap();
+            let num = Decimal::from_str(&num_str).unwrap();
             tokens.push(Token::Number(num));
         } else {
             let next = match c {
@@ -84,6 +86,8 @@ pub fn token_list(unparsed: &str) -> Result<Vec<Token>, TokenizeError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // TODO: Only have this library in test builds
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_tokenizer() {
@@ -97,9 +101,9 @@ mod tests {
                 Token::RightParenthese,
                 Token::Operator(Operator::Mul),
                 Token::LeftParenthese,
-                Token::Number(-5.5),
+                Token::Number(dec!(-5.5)),
                 Token::Operator(Operator::Sub),
-                Token::Number(-3.0),
+                Token::Number(dec!(-3.0)),
                 Token::RightParenthese,
             ]
         );
@@ -112,6 +116,6 @@ mod tests {
             })
         );
 
-        assert_eq!(token_list("-5").unwrap(), vec![Token::Number(-5.0)]);
+        assert_eq!(token_list("-5").unwrap(), vec![Token::Number(dec!(-5.0))]);
     }
 }

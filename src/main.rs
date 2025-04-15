@@ -64,7 +64,7 @@ fn main() {
 
     let converted = parsed.convert(start, &end_unit, value);
     match converted {
-        Ok(conv) => println!("{conv}{end_unit}"),
+        Ok(conv) => println!("{}{end_unit}", conv.normalize()),
         Err(ConversionError::EndDoesntExist { end }) => {
             exit!(1, "There is no {end} in \"{unit_set}\"")
         }

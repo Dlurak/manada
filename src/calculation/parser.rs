@@ -43,7 +43,7 @@ impl Parser {
                 unreachable!()
             };
             let right = self.parse_term()?;
-            left = Value::Expr {
+            left = Value::Calc {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
@@ -63,7 +63,7 @@ impl Parser {
                 unreachable!()
             };
             let right = self.parse_factor()?;
-            left = Value::Expr {
+            left = Value::Calc {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
@@ -94,6 +94,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::super::token::token_list;
+    use rust_decimal_macros::dec;
     use super::*;
 
     fn parse_ok(expr: &str) -> Value {
@@ -106,39 +107,39 @@ mod tests {
     fn test_simple_addition() {
         let value = parse_ok("1 + 2");
         assert_eq!(format!("{}", value), "1 + 2");
-        assert_eq!(value.evaluate(0.0), Some(3.0));
+        assert_eq!(value.evaluate(dec!(0.0)), Some(dec!(3.0)));
     }
 
     #[test]
     fn test_operator_precedence() {
         let value = parse_ok("1 + 2 * 3");
         assert_eq!(format!("{}", value), "1 + (2 * 3)");
-        assert_eq!(value.evaluate(0.0), Some(7.0));
+        assert_eq!(value.evaluate(dec!(0.0)), Some(dec!(7.0)));
 
         let value = parse_ok("10 - 4 / 2");
         assert_eq!(format!("{}", value), "10 - (4 / 2)");
-        assert_eq!(value.evaluate(0.0), Some(8.0));
+        assert_eq!(value.evaluate(dec!(0.0)), Some(dec!(8.0)));
     }
 
     #[test]
     fn test_parentheses_override_precedence() {
         let value = parse_ok("(1 + 2) * 3");
         assert_eq!(format!("{}", value), "(1 + 2) * 3");
-        assert_eq!(value.evaluate(0.0), Some(9.0));
+        assert_eq!(value.evaluate(dec!(0.0)), Some(dec!(9.0)));
     }
 
     #[test]
     fn test_variable_handling() {
         let value = parse_ok("x * 2 + 1");
         assert_eq!(format!("{}", value), "(x * 2) + 1");
-        assert_eq!(value.evaluate(3.0), Some(7.0));
+        assert_eq!(value.evaluate(dec!(3.0)), Some(dec!(7.0)));
     }
 
     #[test]
     fn test_nested_expressions() {
         let value = parse_ok("x * (1 + 2 * x)");
         assert_eq!(format!("{}", value), "x * (1 + (2 * x))");
-        assert_eq!(value.evaluate(2.0), Some(10.0));
+        assert_eq!(value.evaluate(dec!(2.0)), Some(dec!(10.0)));
     }
 
     #[test]
@@ -158,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_single_expr() {
-        assert_eq!(parse_ok("42").evaluate(0.0), Some(42.0));
-        assert_eq!(parse_ok("x").evaluate(5.5), Some(5.5));
+        assert_eq!(parse_ok("42").evaluate(dec!(0.0)), Some(dec!(42.0)));
+        assert_eq!(parse_ok("x").evaluate(dec!(5.5)), Some(dec!(5.5)));
     }
 }
